@@ -89,6 +89,12 @@ public class SCLAlertView: UIViewController {
     
     // UI Options
     public var showCloseButton = true
+    
+    // Move View if keyboard displayed
+    var kSpaceWithKeyboard: CGFloat = 20
+    var kContentViewOriginalPosition: CGPoint!
+    var kCircleBGOriginalPosition: CGPoint!
+    var kTextFieldsOriginalPositions: [CGPoint] = [CGPoint]()
 
     // Members declaration
     var baseView = UIView()
@@ -152,6 +158,8 @@ public class SCLAlertView: UIViewController {
         let tapGesture = UITapGestureRecognizer(target: self, action: Selector("dismissKeyboard"))
         tapGesture.numberOfTapsRequired = 1
         self.view.addGestureRecognizer(tapGesture)
+        NSNotificationCenter.defaultCenter().addObserver(self, selector: Selector("keyboardWillShow:"), name:UIKeyboardWillShowNotification, object: nil);
+        NSNotificationCenter.defaultCenter().addObserver(self, selector: Selector("keyboardWillHide:"), name:UIKeyboardWillHideNotification, object: nil);
     }
 
     override public init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: NSBundle?) {
@@ -470,6 +478,44 @@ public class SCLAlertView: UIViewController {
                 self.view.removeFromSuperview()
                 self.selfReference = nil
         })
+    }
+    
+    
+    // Moving keyboard when alert view has textfield
+
+    func keyboardWillShow(notification: NSNotification) {
+        let info = notification.userInfo!
+        var keyboardSize = (info[UIKeyboardFrameEndUserInfoKey] as! NSValue).CGRectValue().size
+        var lowestTextFieldPoint:CGFloat = 0
+        for (index, textField) in enumerate(self.inputs) {
+            if textField.isFirstResponder() {
+                lowestTextFieldPoint = self.kTextFieldsOriginalPositions[index].y - kTextFieldHeight
+                
+                let pointMoveY = lowestTextFieldPoint - keyboardSize.height
+                
+                println("texfield: \(lowestTextFieldPoint)")
+                println("keyboardSize: \(keyboardSize.height)")
+                println("pointMoveY: \(pointMoveY)")
+                
+                if pointMoveY > 0 {
+                    UIView.animateWithDuration(0.1, animations: { () -> Void in
+                        self.contentView.frame.origin = CGPointMake(self.kContentViewOriginalPosition.x, (self.kContentViewOriginalPosition.y -  pointMoveY))
+                        self.circleBG.frame.origin = CGPointMake(self.kCircleBGOriginalPosition.x, (self.kCircleBGOriginalPosition.y -  pointMoveY))
+                    })
+                }
+            }
+        }
+    }
+    
+    func keyboardWillHide(notification: NSNotification) {
+        UIView.animateWithDuration(0.1, animations: { () -> Void in
+            self.contentView.frame.origin = self.kContentViewOriginalPosition
+            self.circleBG.frame.origin = self.kCircleBGOriginalPosition
+        })
+    }
+    
+    func setSpaceWithKeyboard(distance: CGFloat){
+        self.kSpaceWithKeyboard = distance
     }
 
     // Helper function to convert from RGB to UIColor
